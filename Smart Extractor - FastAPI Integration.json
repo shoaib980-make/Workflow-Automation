@@ -1,0 +1,66 @@
+{
+  "name": "Smart Extractor - FastAPI Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smart-extractor",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ba833e70-5bcb-4b0d-a84d-8c2bfbfcb8ac",
+      "name": "Webhook",
+      "webhookId": "e2f5ffe7-f723-43ad-a3e7-9c327112511e"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "\thttp://host.docker.internal:8000/extract",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $('Webhook').item.json.body.text }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "e253bbb0-d39d-4ff7-9f8b-5a6b413bde87",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "bf496163-d236-4e21-a1d4-d0020972eafa",
+  "meta": {
+    "instanceId": "c543036bf9c74cbb52c2c51bd3a26ada5f6f2cc4c152b52d6f3d8c95b2b48263"
+  },
+  "nodeGroups": [],
+  "id": "GgAOU2fldd5EVYGH",
+  "tags": []
+}

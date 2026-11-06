@@ -1,0 +1,71 @@
+{
+  "name": "CV Screening Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8f4be6d8-cb6e-4825-a5af-2d35e309c4d6",
+      "name": "Error Trigger",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "sendTo": "shoaibasghar021@gmail.com",
+        "subject": "CV Screening Workflow Failed",
+        "message": "=<h2>CV Screening Workflow Failure</h2>  <p>Your CV Screening workflow encountered an error.</p>  <p><b>Workflow:</b> {{ $json.workflow.name }}</p>  <p><b>Error:</b> {{ $json.execution.error.message }}</p>  <p>Please open n8n Executions to investigate.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8c01fe74-0513-4398-a58f-889978174e85",
+      "name": "Send a message",
+      "webhookId": "3e0e654e-2b6d-4cfb-adab-404441e9f843",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "3qfZK7DM6ahVyVcF",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "6f4f1d50-6b73-445a-9fa3-3b782e93ddb2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c543036bf9c74cbb52c2c51bd3a26ada5f6f2cc4c152b52d6f3d8c95b2b48263"
+  },
+  "nodeGroups": [],
+  "id": "FV844YQ77hRYLwZH",
+  "tags": []
+}

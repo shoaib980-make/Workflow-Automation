@@ -1,0 +1,1178 @@
+{
+  "name": "CV Screening",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "14bcf68e-0db6-48b7-a6c2-5a5e66a38bbc",
+              "name": "candidate_name",
+              "value": "Ali Khan",
+              "type": "string"
+            },
+            {
+              "id": "fc8473e6-76a6-4c57-9aa1-11472b9a837f",
+              "name": "experience",
+              "value": "2 years",
+              "type": "string"
+            },
+            {
+              "id": "da3b70f6-e285-4af9-a093-0d4d5f280a65",
+              "name": "skills",
+              "value": "Python, Django, FastAPI",
+              "type": "string"
+            },
+            {
+              "id": "2f214092-cec8-4850-bee2-826f6c027690",
+              "name": "job_description",
+              "value": "Looking for a Python Backend Developer with FastAPI and PostgreSQL experience.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -16,
+        720
+      ],
+      "id": "d704b4fe-a582-4f25-b362-ed57a721223e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR OPENROUTER API KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "messages",
+              "value": "={{\n[\n  {\n    role: \"system\",\n    content: \"You are a CV screening assistant. Analyze the CV against the job description. Return ONLY valid JSON without Markdown or code fences. Use exactly these fields: candidate_name (string), experience (string), skills (array of strings), score (integer 0-100), justification (string). Do not invent information.\"\n  },\n  {\n    role: \"user\",\n    content: \"CV Filename: \" + $json.file_name +\n      \"\\n\\nCV TEXT:\\n\" + $json.cv_text +\n      \"\\n\\nJOB DESCRIPTION:\\n\" + $json.job_description\n  }\n]\n}}"
+            },
+            {
+              "name": "model",
+              "value": "openai/gpt-4o-mini"
+            },
+            {
+              "name": "temperature",
+              "value": "={{ 0.1 }}"
+            },
+            {
+              "name": "response_format",
+              "value": "={{ { type: \"json_object\" } }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        304,
+        -32
+      ],
+      "id": "fe25ad56-3b0e-423b-9057-562bbcb2fa52",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nconst source_id = $('Edit Fields2').isExecuted\n  ? $('Edit Fields2').item.json.source_id\n  : $('Edit Fields3').item.json.source_id;\n\nconst content = response.choices?.[0]?.message?.content;\n\nlet result;\n\ntry {\n  if (!content) {\n    throw new Error(\"AI returned empty content\");\n  }\n\n  result = JSON.parse(content);\n} catch (error) {\n  return [{\n    json: {\n      is_valid: false,\n      validation_error: error.message,\n      source_id: source_id\n    }\n  }];\n}\n\nconst errors = [];\n\nif (typeof result.candidate_name !== \"string\" ||\n    !result.candidate_name.trim()) {\n  errors.push(\"Missing candidate name\");\n}\n\nif (!result.experience) {\n  errors.push(\"Missing experience\");\n}\n\nif (!Array.isArray(result.skills) || result.skills.length === 0) {\n  errors.push(\"Skills must be a non-empty array\");\n}\n\nif (typeof result.score !== \"number\" ||\n    result.score < 0 ||\n    result.score > 100) {\n  errors.push(\"Score must be a number between 0 and 100\");\n}\n\nif (typeof result.justification !== \"string\" ||\n    !result.justification.trim()) {\n  errors.push(\"Missing justification\");\n}\n\nreturn [{\n  json: {\n    ...result,\n    source_id: source_id,\n    is_valid: errors.length === 0,\n    validation_error: errors.join(\", \")\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        -32
+      ],
+      "id": "78c8031f-6843-403f-a85f-5bec62aad297",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "3bee51e8-1f34-4eb3-a9c1-496892755ff5",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1536,
+        -48
+      ],
+      "id": "b90ba3e3-cddc-495a-8295-6d5ce60470e7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg",
+          "mode": "list",
+          "cachedResultName": "CV Screening Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Candidate Name": "={{ $json.candidate_name }}",
+            "Score": "={{ $json.score }}",
+            "Screening Date": "={{ $now }}",
+            "Experience": "={{ $json.experience }}",
+            "Skills": "={{ $json.skills.join(\", \") }}",
+            "Justification": "=\t{{ $json.justification }}",
+            "Source ID": "={{ $json.source_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate Name",
+              "displayName": "Candidate Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Justification",
+              "displayName": "Justification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Screening Date",
+              "displayName": "Screening Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Source ID",
+              "displayName": "Source ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1936,
+        -64
+      ],
+      "id": "351c40eb-d0e0-4a0a-8581-f86732d64205",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aKlRlXjCpCjeDDgl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        768
+      ],
+      "id": "c53cc7e9-1f0f-4807-8ab6-34de10e620d0",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "sendTo": "shoaibasghar021@gmail.com",
+        "subject": "=New Shortlisted Candidate: {{ $json.candidate_name }}",
+        "message": "=<h2>New Candidate Shortlisted</h2> <p><b>Name:</b> {{ $json.candidate_name }}</p> <p><b>Experience:</b> {{ $json.experience }}</p> <p><b>Skills:</b> {{ $json.skills }}</p> <p><b>Score:</b> {{ $json.score }}/100</p> <p><b>Justification:</b> {{ $json.justification }}</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1936,
+        -240
+      ],
+      "id": "f041a6be-4d7d-4bab-a4b4-863b1c14c32c",
+      "name": "Send a message",
+      "webhookId": "a8aae581-f4ec-4b51-bdbe-df132c9d7d36",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "3qfZK7DM6ahVyVcF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "511cf528-e0c4-4e08-b492-8491dde09755",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        704,
+        -32
+      ],
+      "id": "7e8ed73b-148b-413a-a4d1-b0f81d096009",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "22b4e3f8-e24b-42c0-b1db-8bfc1971f73e",
+              "name": "review_status",
+              "value": "Manual Review Required",
+              "type": "string"
+            },
+            {
+              "id": "5b79a568-31c0-481b-8423-cf057b62ff1e",
+              "name": "candidate_name",
+              "value": "={{ $json.candidate_name || \"Unknown\" }}",
+              "type": "string"
+            },
+            {
+              "id": "3bc78d95-0e66-4065-97f6-a19f009ecd60",
+              "name": "validation_error",
+              "value": "={{ $json.validation_error }}",
+              "type": "string"
+            },
+            {
+              "id": "cebc5ee5-e147-4732-a786-c785c107406b",
+              "name": "received_at",
+              "value": "={{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "f805a002-46c8-40fa-b959-446b7f1e3124",
+              "name": "Source ID",
+              "value": "={{ $json.source_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1312,
+        96
+      ],
+      "id": "b3058813-87a4-4da7-b274-bfc785074df6",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cv-screening",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -512,
+        592
+      ],
+      "id": "b5a5e3a7-23ed-4b6c-9246-db658ac56d78",
+      "name": "Webhook",
+      "webhookId": "9a5eec08-3500-41cb-8d20-d7ddd374bd13"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg",
+          "mode": "list",
+          "cachedResultName": "CV Screening Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 33048546,
+          "mode": "list",
+          "cachedResultName": "Manual Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg/edit#gid=33048546"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Validation Error": "={{ $json.validation_error }}",
+            "Candidate Name ": "={{ $json.candidate_name }}",
+            "Review Status": "=\t{{ $json.review_status }}",
+            "Source ID": "={{ $json.source_id }}",
+            "Received at": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate Name ",
+              "displayName": "Candidate Name ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Review Status",
+              "displayName": "Review Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Validation Error",
+              "displayName": "Validation Error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Received at",
+              "displayName": "Received at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Source ID",
+              "displayName": "Source ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1776,
+        160
+      ],
+      "id": "66251c65-19be-40f6-b339-2d26ba4bb867",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aKlRlXjCpCjeDDgl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1Z9tmwuIQUw_YTCK5wm3GghihPULOhYLu",
+          "mode": "list",
+          "cachedResultName": "Incoming CVs",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1Z9tmwuIQUw_YTCK5wm3GghihPULOhYLu"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        -32
+      ],
+      "id": "f9331bb2-fbed-4f5d-98ec-a4fb302129df",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "o205XgXNP3qPv2OH",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -528,
+        -32
+      ],
+      "id": "760c9f0a-11a8-4cad-bba9-89e848356df1",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "o205XgXNP3qPv2OH",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        -336,
+        -32
+      ],
+      "id": "711ac9c9-30cd-4413-b378-2e04e9c28a66",
+      "name": "Extract from File",
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "76feb9e3-af27-4952-86f5-e80067a98f24",
+              "name": "=cv_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "e2e617ef-ea0b-4991-87ad-8b73b1195056",
+              "name": "=file_name",
+              "value": "={{ $('Google Drive Trigger').item.json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "3d92387f-4448-4e9f-a8b6-bccc8d5c2e9c",
+              "name": "job_description",
+              "value": "We are looking for a Python Backend Developer with experience in Python, Django, FastAPI, REST APIs, PostgreSQL, Docker, and AI/LLM integration.",
+              "type": "string"
+            },
+            {
+              "id": "8ef0fddb-bb47-4569-b299-83806e6b90de",
+              "name": "source_id",
+              "value": "={{ $('Google Drive Trigger').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -112,
+        -128
+      ],
+      "id": "b7ef264e-b6b0-4882-8900-5e1ce3e343ac",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -672,
+        192
+      ],
+      "id": "e85ee1ea-28e1-4843-a18d-7ce238257359",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "3qfZK7DM6ahVyVcF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        -208,
+        192
+      ],
+      "id": "b8c61f71-5e4a-4e63-a97f-620649742e10",
+      "name": "Extract from File1",
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "68873406-ee70-404d-8294-12dfb26d6e4d",
+              "name": "cv_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "acef37f0-6a03-4aca-92d4-24a71e4cc523",
+              "name": "file_name",
+              "value": "={{ $('Gmail Trigger').item.binary.attachment_0.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "dc24bf43-1a67-4014-b283-7dca4d31683f",
+              "name": "job_description",
+              "value": "We are looking for a Python Backend Developer with experience in Python, Django, FastAPI, REST APIs, PostgreSQL, Docker, and AI/LLM integration.",
+              "type": "string"
+            },
+            {
+              "id": "d2c90a9f-f4f3-44d5-9728-fb541ea9b370",
+              "name": "source_id",
+              "value": "={{ $('Gmail Trigger').item.json.messageId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        16,
+        192
+      ],
+      "id": "adc11d0c-6c25-4529-b834-98ed4e0d8ff7",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dfb96253-8065-4f36-a3d3-a73ca4d815a7",
+              "name": "candidate_name",
+              "value": "Unknown",
+              "type": "string"
+            },
+            {
+              "id": "990970aa-8800-4adc-894f-ba46e5a623b6",
+              "name": "file_name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "8d00cdc9-47d3-4fcf-80a0-7fe38f6080f7",
+              "name": "score",
+              "value": "=0",
+              "type": "string"
+            },
+            {
+              "id": "097940f2-c596-4258-92c0-90abbaecaf95",
+              "name": "justification",
+              "value": "=={{ $json.error }}",
+              "type": "string"
+            },
+            {
+              "id": "f22e4c0f-ff0b-4fe2-a896-0806e71d1b2c",
+              "name": "review_status",
+              "value": "Manual Review - PDF Extraction Failed",
+              "type": "string"
+            },
+            {
+              "id": "099ec274-1692-47d9-98bc-a5bae1760079",
+              "name": "received_at",
+              "value": "=={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        880,
+        352
+      ],
+      "id": "dc579c6c-6efa-47ee-a91a-32253c3f848c",
+      "name": "Prepare Failed PDF Review"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        144,
+        400
+      ],
+      "id": "1553b62c-d163-4bb6-9909-f5241d7f39a6",
+      "name": "Prepare Failed Gmail PDF Review"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "c838724e-c2a4-444c-b3af-3f6eb3960068",
+              "leftValue": "={{ !!$binary?.attachment_0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -448,
+        192
+      ],
+      "id": "4af7ee9c-d676-4015-925f-7ca326748f44",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg",
+          "mode": "list",
+          "cachedResultName": "CV Screening Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jSZ7tNh9XqFv633rEBFxlVN0tM8_JJqEmahtRSEOZbg/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=Source ID",
+              "lookupValue": "={{ $json.source_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "aef07b5d-a1fc-4936-bbfa-6e71e1415eaf",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aKlRlXjCpCjeDDgl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1200,
+        -256
+      ],
+      "id": "8d8143e3-2467-4afb-9205-a5773760fdec",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "ec5c02e5-8de7-4fc7-8e8c-a04047e1e4db",
+              "leftValue": "={{ !!$json[\"Source ID\"] }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        -144
+      ],
+      "id": "ef5c01f7-4986-4674-a467-e665ee73ba49",
+      "name": "If3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        []
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed PDF Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failed Gmail PDF Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Failed PDF Review": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "FV844YQ77hRYLwZH",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "afa83d84-0a36-4566-af04-148ea61c34af",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c543036bf9c74cbb52c2c51bd3a26ada5f6f2cc4c152b52d6f3d8c95b2b48263"
+  },
+  "nodeGroups": [],
+  "id": "VUdVIA9Qa0BwMUy9",
+  "tags": []
+}
